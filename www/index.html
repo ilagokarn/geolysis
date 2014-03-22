@@ -12,12 +12,39 @@
             <div><div class="map" id="map" ></div></div>
 	</div>
 	<div class="row-fluid">
-            <div id="infoBox" class="offset9 infoBox span3 pull-right" align="center" style="color: #ffffff; padding-left: 6px; position: absolute;">
+            <div id="infoBox" class="offset9 span3 infoBox pull-right" align="left" style="color: #ffffff; padding-left: 6px; position: absolute;">
+			<div id="customresultbox-inner">
                 <h4>Result</h4>
-                
-            </div>
-            
-        
+				  <p>
+				  <label>Analysis Options:</label><br />
+				  <select name="rOption">
+					  <option value="nni">NNI</option>
+					  <option value="quadrat">Quadrat</option>
+				  </select>
+				  </p>
+
+				 <h4> Output of optional html component </h4>
+				 <div id="htmlOpt" class="shiny-html-output"
+					 style="width: 50%; height: 50px"></div>
+				 
+				 <h4> Output of optional plots </h4>
+				 <div id="plotOpt" class="shiny-plot-output"
+					 style="width: 50%; height: 300px"></div>
+
+				 <h4> Output of optional texts </h4>
+				 <div id="textOpt" class="shiny-text-output"
+					style="width: 50%; height: 50px"></div>
+
+				 <h4>Advanced Options</h4>
+				   <p>
+					<label>Quadrat Analysis Grid Setting</label>
+						  <select id="quadratOpt">
+							<option value="fiveFive">5 X 5</option>
+							<option value="sixFour" selected="selected"> 6 X 4</option>
+						  </select>
+						</p>     
+					</div>
+			</div>
         </div>
     <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
         <div class="modal-dialog">

@@ -47,6 +47,7 @@ border-radius: 5px;
     background-repeat: repeat-x;
     filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff222222', endColorstr='#ff111111', GradientType=0);
     border-color: #252525;
+	overflow: auto;
 } 
 .map{
     position: absolute;
@@ -175,11 +176,12 @@ margin-bottom: 30px;
 .customaboutbox1-inner{
     padding: 15px;
 }
-.customprofbox-inner{
+.customresultbox-inner{
     padding-left: 20px;
     padding-top: 10px;
     padding-bottom: 20px;
     padding-right: 5px;
+	overflow: auto;
 }
 .customfilterbox{
   background-color: #fafafa;
@@ -219,9 +221,7 @@ margin-bottom: 30px;
 } 
 .FixedHeightContainer{
   float:right;
-  height: 600px;
-  padding:3px; 
-    
+  height: 100%;
 }
 .content{
   height:280px;
