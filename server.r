@@ -39,7 +39,7 @@ shinyServer(function(input, output) {
 
     if (rOpt== "nni"){
     
-        nm <- readShapeSpatial("data/nniDataIn.shp")
+        nm <- readShapeSpatial("../data/nniDataIn.shp")
         nmp <- as(nm, "SpatialPoints")
         nm_ppp <- as(nmp, "ppp")
         plotIn <- nnfun(nm_ppp)
@@ -49,7 +49,7 @@ shinyServer(function(input, output) {
         
 
         
-        nm <- readShapeSpatial("data/nniDataIn.shp")
+        nm <- readShapeSpatial("../data/nniDataIn.shp")
         nmp <- as(nm, "SpatialPoints")
         nm_ppp <- as(nmp, "ppp")
         opt <- input$quadratOpt
@@ -78,7 +78,7 @@ shinyServer(function(input, output) {
 
     if (rOpt== "nni"){
 
-       nm <- readShapeSpatial("data/nniDataIn.shp")
+       nm <- readShapeSpatial("../data/nniDataIn.shp")
        nmp <- as(nm, "SpatialPoints")
        nm_ppp <- as(nmp, "ppp")
        clarkevans(nm_ppp)
@@ -86,7 +86,7 @@ shinyServer(function(input, output) {
 
      } else if (rOpt == "quadrat"){
 
-       nm <- readShapeSpatial("data/nniDataIn.shp")
+       nm <- readShapeSpatial("../data/nniDataIn.shp")
        nmp <- as(nm, "SpatialPoints")
        nm_ppp <- as(nmp, "ppp")
        
