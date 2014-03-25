@@ -7,7 +7,7 @@ if(isset($_GET['files']))
 	$error = false;
 	$files = array();
 
-	$uploaddir = 'upload/';
+	$uploaddir = '../data/';
 	foreach($_FILES as $file)
 	{
 		if(move_uploaded_file($file['tmp_name'], $uploaddir .basename($file['name'])))

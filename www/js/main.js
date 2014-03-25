@@ -80,7 +80,7 @@ $('#upload-submit').click(function() {
 		
 	});
 	alert(data);
-	var filePath = 'upload/'+filename;
+	var filePath = '../data/'+filename;
 	alert (filePath);
 	var geojsonMarkerOptions = {
         radius: 8,
