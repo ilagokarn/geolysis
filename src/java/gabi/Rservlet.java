@@ -6,19 +6,24 @@
 
 package gabi;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.rosuda.REngine.*;
+import org.rosuda.REngine.Rserve.*;
 
 /**
  *
  * @author ingokarn.2011
  */
-public class Rservlet extends HttpServlet {
-
+public class Rservlet extends HttpServlet 
+{
+    private static RConnection c = null;
+    
     /**
      * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
      * methods.
@@ -29,7 +34,10 @@ public class Rservlet extends HttpServlet {
      * @throws IOException if an I/O error occurs
      */
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
+            throws ServletException, IOException 
+    {
+        initRConnect();
+        
         response.setContentType("text/html;charset=UTF-8");
         PrintWriter out = response.getWriter();
         try {
@@ -45,6 +53,80 @@ public class Rservlet extends HttpServlet {
             out.println("</html>");
         } finally {
             out.close();
+        }
+    }
+            
+    public void getRipleyK(String shp, int nSim)
+    {
+        try
+        {
+            c.eval("pts = readShapeSpatial(" + shp + ")");
+            c.eval("ptsppp = as(as(pts, \"SpatialPoints\"), \"ppp\")");
+            c.eval("envK = envelope(ptsppp, Kest, nsim = " + nSim + ")");
+            
+            String fileName = "temp_" + shp + "ripleyk.jpeg";
+            String root = getServletContext().getRealPath("/");
+            File path = new File(root + "/tempoutput");
+            if(!path.exists())  
+            {  
+                path.mkdirs();  
+            }
+            String outFilepath = path + "/" + fileName;
+            System.out.println(outFilepath);
+            c.eval("jpeg(file = \"" + outFilepath + "\", bg = \"white\")");
+            c.eval("plot(envK)");
+            c.eval("dev.off()");
+        }
+        catch(RserveException rse)
+        {
+            System.out.println(rse);
+        }
+    }
+    
+    public void getKdeHeatmap(String shp, int radius, String kernelType)
+    {
+        try
+        {
+            c.eval("pts = readShapeSpatial(" + shp + ")");
+            c.eval("ptsppp = as(as(pts, \"SpatialPoints\"), \"ppp\")");
+            c.eval("kde = density(ptsppp, width = " + radius + ", kernel = \"" + kernelType + "\")");
+            
+            String fileName = "temp_kde" + radius + kernelType + "heatmap.jpeg";
+            String root = getServletContext().getRealPath("/");
+            File path = new File(root + "/tempoutput");
+            if(!path.exists())  
+            {  
+                path.mkdirs();  
+            }
+            String outFilepath = path + "/" + fileName;
+            System.out.println(outFilepath);
+            c.eval("jpeg(file = \"" + outFilepath + "\", bg = \"white\")");
+            c.eval("plot(kde)");
+            c.eval("dev.off()");
+        }
+        catch(RserveException rse)
+        {
+            System.out.println(rse);
+        }
+    }
+    
+    private void initRConnect()
+    {
+        if(c == null)
+        {
+            try
+            {
+                c = new RConnection();
+                System.out.println(">>" + c.eval("R.version$version.string").asString() + "<<");
+                c.eval("library(spatstat)");
+                c.eval("library(maptools)");
+            }
+            catch (REngineException e) 
+            {
+            }
+            catch (REXPMismatchException mme) 
+            {
+            }
         }
     }
 
