@@ -36,26 +36,21 @@ public class Rservlet extends HttpServlet
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException 
     {
-        System.out.println("inside rservlet");
         initRConnect();
+        
         response.setContentType("text/html;charset=UTF-8");
-        System.out.println("processing request");
         PrintWriter out = response.getWriter();
         try {
-            String algo = (String) request.getParameter("algo");
-            System.out.println(algo);
-            if (algo.equals("kde")){
-                String fileName = request.getParameter("fileName")+".shp";
-                int radius = Integer.parseInt(request.getParameter("kdeRadius"));
-                String kernelType = request.getParameter("kdeType").toLowerCase();
-                String root = getServletContext().getRealPath("/"); 
-                System.out.println("root path"+root);
-                File path = new File(root + "/uploads/"+fileName);
-                System.out.println("final path"+path);
-                System.out.println(path.getAbsolutePath()+" "+radius+" "+kernelType+" calling method now");
-                String output = getKdeHeatmap(path.getAbsolutePath(), radius, kernelType);
-                out.println(output);
-            }
+            /* TODO output your page here. You may use following sample code. */
+            out.println("<!DOCTYPE html>");
+            out.println("<html>");
+            out.println("<head>");
+            out.println("<title>Servlet Rservlet</title>");            
+            out.println("</head>");
+            out.println("<body>");
+            out.println("<h1>Servlet Rservlet at " + request.getContextPath() + "</h1>");
+            out.println("</body>");
+            out.println("</html>");
         } finally {
             out.close();
         }
@@ -65,7 +60,7 @@ public class Rservlet extends HttpServlet
     {
         try
         {
-            c.eval("pts = readShapeSpatial(" + shp + ")");
+            c.eval("pts = readShapeSpatial(\"" + shp + "\")");
             c.eval("ptsppp = as(as(pts, \"SpatialPoints\"), \"ppp\")");
             c.eval("envK = envelope(ptsppp, Kest, nsim = " + nSim + ")");
             
@@ -88,24 +83,22 @@ public class Rservlet extends HttpServlet
         }
     }
     
-    public String getKdeHeatmap(String shp, int radius, String kernelType)
+    public void getKdeHeatmap(String shp, int radius, String kernelType)
     {
-        String outFilepath = "";
         try
-        {   
-            String temp = "pts = readShapeSpatial(\"" + shp + "\")";
-            c.eval(temp);
+        {
+            c.eval("pts = readShapeSpatial(\"" + shp + "\")");
             c.eval("ptsppp = as(as(pts, \"SpatialPoints\"), \"ppp\")");
             c.eval("kde = density(ptsppp, width = " + radius + ", kernel = \"" + kernelType + "\")");
             
-            String fileName = "temp_kde" + radius + kernelType + "heatmap.jpeg";
+            String fileName = "temp_kde" + shp + radius + kernelType + "heatmap.jpeg";
             String root = getServletContext().getRealPath("/");
             File path = new File(root + "/tempoutput");
             if(!path.exists())  
             {  
                 path.mkdirs();  
             }
-            outFilepath = path + "/" + fileName;
+            String outFilepath = path + "/" + fileName;
             System.out.println(outFilepath);
             c.eval("jpeg(file = \"" + outFilepath + "\", bg = \"white\")");
             c.eval("plot(kde)");
@@ -115,7 +108,81 @@ public class Rservlet extends HttpServlet
         {
             System.out.println(rse);
         }
-        return outFilepath;
+    }
+    
+    //results[0] = plot file path
+    //results[1] = Test output
+    public String[] doQuadrat(String polyShp, String ptsShp, int xQuadrats, int yQuadrats)
+    {
+        try
+        {
+            String[] results = new String[2];
+
+            c.eval("region = readShapeSpatial(\"" + polyShp + "\")");
+            c.eval("pts = readShapeSpatial(\"" + ptsShp + "\")");
+            c.eval("regionowin = as (region, \"owin\")");
+            c.eval("preppp = as(pts, \"ppp\")");
+            c.eval("finalppp = ppp(preppp$x, preppp$y, window = regionowin)");
+            c.eval("qc = quadratcount(finalppp, " + xQuadrats + ", " + yQuadrats + ")");
+
+            String fileName = "temp_quadrat" + polyShp + ptsShp + xQuadrats + yQuadrats + "plot.jpeg";
+            String root = getServletContext().getRealPath("/");
+            File path = new File(root + "/tempoutput");
+            if(!path.exists())  
+            {  
+                path.mkdirs();  
+            }
+            String outFilepath = path + "/" + fileName;
+            c.eval("jpeg(file = \"" + outFilepath + "\", bg = \"white\")");
+            c.eval("plot(qc)");
+            c.eval("dev.off()");
+            
+            results[0] = outFilepath;
+            
+            results[1] = c.eval("paste(capture.output(print(quadrat.test(qc))),collapse='\\n')").asString();
+            
+            return results;
+        }
+        catch(RserveException rse)
+        {
+            System.out.println(rse);
+            return null;
+        }
+        catch (REXPMismatchException e)
+        {
+            System.out.println(e);
+            return null;
+        }
+    }
+    
+    public String doNNI(String ptsShp, String polyShp)
+    {
+        try
+        {
+            c.eval("pts = readShapeSpatial(\"" + ptsShp + "\")");
+            c.eval("ppp = as(as(pts, \"SpatialPoints\"), \"ppp\")");
+            
+            if(polyShp.isEmpty() == true)
+            {
+                return c.eval("paste(capture.output(print(clarkevans.test(ppp))),collapse='\\n')").asString();
+            }
+            else
+            {
+                c.eval("region = readShapeSpatial(\"" + polyShp + "\")");
+                c.eval("regionowin = as (region, \"owin\")");
+                return c.eval("paste(capture.output(print(clarkevans.test(ppp, correction = \"guard\", clipregion = regionowin))),collapse='\\n')").asString();
+            }
+        }
+        catch(RserveException rse)
+        {
+            System.out.println(rse);
+            return null;
+        }
+        catch (REXPMismatchException e)
+        {
+            System.out.println(e);
+            return null;
+        }
     }
     
     private void initRConnect()
@@ -125,18 +192,15 @@ public class Rservlet extends HttpServlet
             try
             {
                 c = new RConnection();
+                System.out.println(">>" + c.eval("R.version$version.string").asString() + "<<");
                 c.eval("library(spatstat)");
                 c.eval("library(maptools)");
-                System.out.println(">>" + c.eval("R.version$version.string").asString() + "<<");
-                
             }
             catch (REngineException e) 
             {
-                System.out.println("REngineException");
             }
             catch (REXPMismatchException mme) 
             {
-                System.out.println("R Expression Exception");
             }
         }
     }
