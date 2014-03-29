@@ -36,21 +36,26 @@ public class Rservlet extends HttpServlet
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException 
     {
+        System.out.println("inside rservlet");
         initRConnect();
-        
         response.setContentType("text/html;charset=UTF-8");
+        System.out.println("processing request");
         PrintWriter out = response.getWriter();
         try {
-            /* TODO output your page here. You may use following sample code. */
-            out.println("<!DOCTYPE html>");
-            out.println("<html>");
-            out.println("<head>");
-            out.println("<title>Servlet Rservlet</title>");            
-            out.println("</head>");
-            out.println("<body>");
-            out.println("<h1>Servlet Rservlet at " + request.getContextPath() + "</h1>");
-            out.println("</body>");
-            out.println("</html>");
+            String algo = (String) request.getParameter("algo");
+            System.out.println(algo);
+            if (algo.equals("kde")){
+                String fileName = request.getParameter("fileName")+".shp";
+                int radius = Integer.parseInt(request.getParameter("kdeRadius"));
+                String kernelType = request.getParameter("kdeType").toLowerCase();
+                String root = getServletContext().getRealPath("/"); 
+                System.out.println("root path"+root);
+                File path = new File(root + "/uploads/"+fileName);
+                System.out.println("final path"+path);
+                System.out.println(path.getAbsolutePath()+" "+radius+" "+kernelType+" calling method now");
+                String output = getKdeHeatmap(path.getAbsolutePath(), radius, kernelType);
+                out.println(output);
+            }
         } finally {
             out.close();
         }
@@ -83,11 +88,13 @@ public class Rservlet extends HttpServlet
         }
     }
     
-    public void getKdeHeatmap(String shp, int radius, String kernelType)
+    public String getKdeHeatmap(String shp, int radius, String kernelType)
     {
+        String outFilepath = "";
         try
-        {
-            c.eval("pts = readShapeSpatial(" + shp + ")");
+        {   
+            String temp = "pts = readShapeSpatial(\"" + shp + "\")";
+            c.eval(temp);
             c.eval("ptsppp = as(as(pts, \"SpatialPoints\"), \"ppp\")");
             c.eval("kde = density(ptsppp, width = " + radius + ", kernel = \"" + kernelType + "\")");
             
@@ -98,7 +105,7 @@ public class Rservlet extends HttpServlet
             {  
                 path.mkdirs();  
             }
-            String outFilepath = path + "/" + fileName;
+            outFilepath = path + "/" + fileName;
             System.out.println(outFilepath);
             c.eval("jpeg(file = \"" + outFilepath + "\", bg = \"white\")");
             c.eval("plot(kde)");
@@ -108,6 +115,7 @@ public class Rservlet extends HttpServlet
         {
             System.out.println(rse);
         }
+        return outFilepath;
     }
     
     private void initRConnect()
@@ -117,15 +125,18 @@ public class Rservlet extends HttpServlet
             try
             {
                 c = new RConnection();
-                System.out.println(">>" + c.eval("R.version$version.string").asString() + "<<");
                 c.eval("library(spatstat)");
                 c.eval("library(maptools)");
+                System.out.println(">>" + c.eval("R.version$version.string").asString() + "<<");
+                
             }
             catch (REngineException e) 
             {
+                System.out.println("REngineException");
             }
             catch (REXPMismatchException mme) 
             {
+                System.out.println("R Expression Exception");
             }
         }
     }

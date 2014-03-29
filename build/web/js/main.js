@@ -45,30 +45,28 @@ uploadFile.onAdd = function(map) {
         "<tr><td><h5>Geospatial Analysis</h5></td></tr>"+
         "<tr><td><button type='button' class='btn btn-link' data-toggle='modal' data-target='#nniModal'>Nearest Neighbor</button></td></tr>"+
         "<tr><td><button type='button' class='btn btn-link' data-toggle='modal' data-target='#quadModal'>Quadrat Analysis</button></td></tr>"+
-        "<tr><td><button type='button' class='btn btn-link' data-toggle='modal' data-target='#kfuncModal'>Ripley's K</button></td></tr>"+
-        "<tr><td><button type='button' class='btn btn-link' data-toggle='modal' data-target='#lfuncModal'>L Function</button></td></tr>"+
+        "<tr><td><button type='button' class='btn btn-link' data-toggle='modal' data-target='#kfuncModal'>Ripley's K & L Function</button></td></tr>"+
+        "<tr><td><button type='button' class='btn btn-link' data-toggle='modal' data-target='#kdeModal'>Kernal Density Estimation</button></td></tr>"+
         "<tr><td><button type='button' class='btn btn-link' data-toggle='modal' data-target='#bufModal'>Trade Area Analysis</button></td></tr></table>";
         return this._div;
 }
 uploadFile.addTo(map);
 
-
-
 L.control.scale({
         maxWidth: 200
 }).addTo(map);
 
+var uploadedFiles= [];
+
 var files;
 $('input[type=file]').on('change', prepareUpload);
-function prepareUpload(event)
-{
+function prepareUpload(event){
 	files = event.target.files;
 }
         
 $('#upload-submit').click(function() {
 	event.stopPropagation(); // Stop stuff happening
 	event.preventDefault(); // Totally stop stuff happening
-	alert("clicked");
 	// START A LOADING SPINNER HERE
 
 	// Create a formdata object and add the files
@@ -78,11 +76,11 @@ $('#upload-submit').click(function() {
 	{
 		data.append(key, value);
 		filename = value.name;
-		
-	});
-	alert(data);
+                var temp = filename.substring(0,filename.indexOf("."))
+                //alert("temp:"+temp);
+                uploadedFiles.push(temp);
+        });
 	var filePath = 'uploads/'+filename;
-	alert (filePath);
 	var geojsonMarkerOptions = {
         radius: 8,
         fillColor: "#ff7800",
@@ -100,11 +98,11 @@ $('#upload-submit').click(function() {
             contentType: false, // Set content type to false as jQuery will tell the server its a query string request
             success: function(data, textStatus, jqXHR)
             {
-            alert("success");
+            //alert("success");
             if(typeof data.error === 'undefined'){
                     var index = filename.indexOf(".");
                     var type = filename.substring(index+1);
-                    alert(type);
+                    //alert(type);
                     if(type === "geojson"){
                         $.getJSON(filePath,function(data){
                             var layer = L.geoJson(data, {
@@ -134,3 +132,59 @@ $('#upload-submit').click(function() {
     });
 });
 
+$('#kdeModal').on('shown.bs.modal', function () {
+  if(uploadedFiles.length === 0 ){
+      $('#kdeModal').modal('hide');
+      $('#errorModal').modal('show');
+  }else{
+    var du1=document.getElementById("selectKDEFile");
+    for(var i = 0; i < uploadedFiles.length; i++) {
+        var opt = uploadedFiles[i];
+        alert("opt: "+opt);
+        var el = document.createElement("option");
+        el.textContent = opt;
+        el.value = opt;
+        du1.appendChild(el);
+      }
+  }
+})
+
+function kdeinitialize(){
+    $("#kdeOutput").show();
+    var chosenFile = document.getElementById("selectKDEFile").value;
+    var radius = document.getElementById("kdeRadius").value;
+    var kdeType = document.getElementById("kdeType").value;
+    document.getElementById("kdeChosenFile").innerHTML = chosenFile;
+    document.getElementById("kdeChosenWeight").innerHTML = kdeType;
+    $(function() {
+        $( "#slider" ).slider({
+          value:radius,
+          min: 0,
+          max: 1000,
+          step: 10,
+          slide: function( event, ui ) {
+            $( "#amount" ).val(ui.value );
+          }
+        });
+        $( "#amount" ).val( $( "#slider" ).slider( "value" ) );
+      });
+    $('#kdeModal').modal('hide');
+    kderun();
+}
+
+function kderun(){
+    var filename = document.getElementById("kdeChosenFile").innerHTML;
+    var kdeType = document.getElementById("kdeChosenWeight").innerHTML;
+    var radius = document.getElementById("amount").value;
+    alert(filename+kdeType+radius);
+    $.get('/Geolysis/rservlet',{
+        "algo": 'kde',
+        "fileName": filename,
+        "kdeRadius": radius,
+        "kdeType": kdeType
+        },
+        function(data){
+            document.getElementById("kdeimg").innerHTML = data;
+        }
+    );
+}
