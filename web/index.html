@@ -4,48 +4,56 @@
         <link href="http://cdn.leafletjs.com/leaflet-0.7.2/leaflet.css" rel="stylesheet"  />
         <link href="stylesheets/bootstrap.css" rel="stylesheet">
         <link href="stylesheets/Control.OSMGeocoder.css" rel="stylesheet">
-		<link href="stylesheets/shiny.css" rel="stylesheet"/> 
-        <!--<link rel="stylesheet" type="text/css" href="shared/shiny.css"> -->
-        <title>Geolysis</title>
+        <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css">
+	<title>Geolysis</title>
     </head>
     <body>
     <div class="row-fluid" align="center" style="padding-top: 100px;">
             <div><div class="map" id="map" ></div></div>
 	</div>
 	<div class="row-fluid">
-            <div id="infoBox" class="offset9 span3 infoBox pull-right" align="left" style="color: #ffffff; padding-left: 6px; position: absolute;">
-			<div id="customresultbox-inner">
-                <h4>Result</h4>
-				  <p>
-				  <label>Analysis Options:</label><br />
-				  <select name="rOption">
-					  <option value="nni">NNI</option>
-					  <option value="quadrat">Quadrat</option>
-				  </select>
-				  </p>
-
-				 <h4> Output of optional html component </h4>
-				 <div id="htmlOpt" class="shiny-html-output"
-					 style="width: 50%; height: 50px"></div>
-				 
-				 <h4> Output of optional plots </h4>
-				 <div id="plotOpt" class="shiny-plot-output"
-					 style="width: 50%; height: 300px"></div>
-
-				 <h4> Output of optional texts </h4>
-				 <div id="textOpt" class="shiny-text-output"
-					style="width: 50%; height: 50px"></div>
-
-				 <h4>Advanced Options</h4>
-				   <p>
-					<label>Quadrat Analysis Grid Setting</label>
-						  <select id="quadratOpt">
-							<option value="fiveFive">5 X 5</option>
-							<option value="sixFour" selected="selected"> 6 X 4</option>
-						  </select>
-						</p>     
-					</div>
-			</div>
+            <div id="infoBox" class="offset8 span4 infoBox pull-right" align="left" style="color: #ffffff; padding: 6px; position: absolute;">
+                <div id="customresultbox-inner">
+                    <h4>Analysis Output</h4>
+                    <div id="kdeOutput">
+                        <br/>
+                        Algorithm selected: Kernel Density Estimation<br/>
+                        Chosen file: <span id="kdeChosenFile"></span> <br/>
+                        Kernel type: <span id="kdeChosenWeight"></span><br/>
+                        Radius selected: <label for="amount"></label><input id="amount" style="border: 0; color:#f6931f; font-weight:bold; background: #1b1b1b; opacity: 0.8; width: 50px;">meters <br/> 
+                        <div id="slider"></div><br/><br/>
+                        <span id="kdeloading"><b>Loading, Please Wait...</b></span>
+                        <img src="" id="kdeimg"/>
+                    </div>
+                    <div id="kfuncOutput">
+                        <br/>
+                        Algorithm selected: Ripley's K Function<br/>
+                        Chosen file: <span id="kfuncFile"></span><br/>
+                        Number of simulations: <span id="kfuncNSim"></span><br/>
+                        <span id="kfuncloading"><b>Loading, Please Wait...</b></span><br/><br/>
+                        <img src="" id="kfuncimg"/>
+                    </div>
+                    <div id="nniOutput">
+                        <br/>
+                        Algorithm selected: Nearest Neighbor Index<br/>
+                        Chosen file: <span id="nniFile"></span><br/>
+                        K: <span id="k"></span><br/>
+                        <span id="nniloading"><b>Loading, Please Wait...</b></span>
+                        <span id="nniresult"></span>
+                    </div>
+                    <div id="quadOutput">
+                        <br/>
+                        Algorithm selected: Quadrat Analysis<br/>
+                        Chosen file: <span id="quadFile"></span><br/>
+                        Grid Pattern:    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input id="r" type="text" style="width: 40px"/> X <input id="c" type="text" style="width: 40px"/>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <button type="button" class="btn btn-success" onclick="quadrun();">Re-Run</button><br/>
+                        <span id="quadloading"><b>Loading, Please Wait...</b></span>
+                        <span id="quadresult"></span>
+                        <img src="" id="quadimg"/>
+                        
+                    </div>
+                </div>
+            </div>
         </div>
     <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -59,16 +67,132 @@
                 <form action="#" method="post" enctype="multipart/form-data">
                     <input type="file" name="file_upload" id="file"> 
                 </form>
-          </div>
+                Choose color for this layer: <input class="color" value="66ff00" id="pointColor"/>
+           </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-			  <button type="button" id="upload-submit" class="btn btn-success">Submit</button>
-
+              <button type="button" id="upload-submit" class="btn btn-success">Submit</button>
             </div>
           </div>
         </div>
       </div>
-    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+        
+        <div class="modal fade" id="kdeModal" tabindex="-1" role="dialog" aria-labelledby="kdeModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+              <h4 class="modal-title" id="kdeModalLabel">Kernel Density Estimation</h4>
+            </div>
+              <div class="modal-body">
+                  Select Layer:    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <select id="selectKDEFile"></select><br/>
+                  Radius:          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <input id="kdeRadius" type="text"/> meters<br/>
+                  Kernel Type:     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <select id="kdeType">
+                          <option name="biweight" id="biweight" selected>Biweight</option>
+                          <option name="gaussian" id="gaussian">Gaussian</option>
+                          <option name="epanechnikov" id="epanechnikov">Epanechnikov</option>
+                          <option name="triangular" id="triangular">Triangular</option>
+                          <option name="rectangular" id="rectangular">Rectangular</option>
+                          <option name="cosine" id="cosine">Cosine</option>
+                          <option name="optcosine" id="optcosine">Optcosine</option>
+                      </select>
+           </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+              <button type="button" id="kde-run" class="btn btn-success" onclick="kdeinitialize();">Run Model</button>
+            </div>
+          </div>
+        </div>
+      </div>
+        <div class="modal fade" id="kfuncModal" tabindex="-1" role="dialog" aria-labelledby="kfuncModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+              <h4 class="modal-title" id="kfuncModalLabel">Kernel Density Estimation</h4>
+            </div>
+              <div class="modal-body">
+                  Select Layer:    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <select id="selectKfuncFile"></select><br/>
+                  Number of Simulations:          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+                  <select id="kfuncnsim">
+                      <option name="1" value="1" selected>1</option>
+                      <option name="2" value="2">2</option>
+                      <option name="3" value="3">3</option>
+                      <option name="4" value="4">4</option>
+                      <option name="5" value="5">5</option>
+                      <option name="6" value="6">6</option>
+                      <option name="7" value="7">7</option>
+                      <option name="8" value="8">8</option>
+                      <option name="9" value="9">9</option>
+                      <option name="10" value="10">10</option>
+                  </select><br/><br/>
+           </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+              <button type="button" id="kfunc-run" class="btn btn-success" onclick="kfuncrun();">Run Model</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    <div class="modal fade" id="quadModal" tabindex="-1" role="dialog" aria-labelledby="quadModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+              <h4 class="modal-title" id="quadratModalLabel">Quadrat Analysis</h4>
+            </div>
+              <div class="modal-body">
+                  Select Layer:    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <select id="selectQuadFile"></select><br/>
+                  Grid Pattern:    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input id="quadR" type="text" style="width: 40px"/> X <input id="quadC" type="text" style="width: 40px"/>
+           </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+              <button type="button" class="btn btn-success" data-dismiss="modal" onclick="quadinitialize();">Run Model</button>
+            </div>
+          </div>
+        </div>
+      </div>
+        
+        <div class="modal fade" id="nniModal" tabindex="-1" role="dialog" aria-labelledby="nniModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+              <h4 class="modal-title" id="nniModalLabel">Nearest Neighbor Index</h4>
+            </div>
+              <div class="modal-body">
+                  Select Layer:    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <select id="selectNNIFile"></select><br/>
+                  K:    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input id="nnik" type="text" class="width: 40px;"/>
+           </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+              <button type="button" class="btn btn-success" data-dismiss="modal" onclick="nnirun();">Run Model</button>
+            </div>
+          </div>
+        </div>
+      </div>
+        
+        
+        <div class="modal fade" id="errorModal" tabindex="-1" role="dialog" aria-labelledby="errorModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+              <h4 class="modal-title" id="errorModalLabel">Error</h4>
+            </div>
+              <div class="modal-body">
+                  Please upload a layer for analysis. 
+           </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+        <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+        <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+        <script src="http://code.jquery.com/ui/1.10.4/jquery-ui.js"></script>
         <script>window.jQuery || document.write('<script src="js/jquery.js"><\/script>');</script>
         <script src="http://cdn.leafletjs.com/leaflet-0.7.2/leaflet.js"></script>
         <script src="js/bootstrap.js"></script>
@@ -77,11 +201,19 @@
         <script src="js/leaflet.groupedlayercontrol.js"></script>
         <script src="js/google.js"></script>
         <!--<script src="shared/shiny.js" type="text/javascript"></script>-->
-        
-		<script src="js/shp.js"></script>
+        <script src="js/jscolor.js"></script>
+	<script src="js/shp.js"></script>
         <script src="js/catiline.js"></script>
         <script src="js/leaflet.shpfile.js"></script>
-		<script src ="js/main.js"></script>
+        <script src ="js/main.js"></script>
+        <script>
+            $(document).ready(function () {
+                $("#kdeOutput").hide();
+                $("#kfuncOutput").hide();
+                $("#nniOutput").hide();
+                $("#quadOutput").hide();
+            });
+        </script>
     </body>
 </html>
 
