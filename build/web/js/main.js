@@ -23,9 +23,12 @@ var ggs = new L.Google('SATELLITE', {
 	}
 });
 
+var stamen = L.tileLayer.provider('Stamen.Watercolor');
+
 var baseMaps = {
     "Open Street Maps": minimal,
-    "Google Satellite Maps": ggs
+    "Google Satellite Maps": ggs,
+    "Stamen Watercolor": stamen
 };
 var groupedOverlays = {
   "Overlays": {
@@ -46,10 +49,25 @@ uploadFile.onAdd = function(map) {
         "<tr><td><button type='button' class='btn btn-link' data-toggle='modal' data-target='#nniModal'>Nearest Neighbor</button></td></tr>"+
         "<tr><td><button type='button' class='btn btn-link' data-toggle='modal' data-target='#quadModal'>Quadrat Analysis</button></td></tr>"+
         "<tr><td><button type='button' class='btn btn-link' data-toggle='modal' data-target='#kfuncModal'>Ripley's K Function</button></td></tr>"+
-        "<tr><td><button type='button' class='btn btn-link' data-toggle='modal' data-target='#kdeModal'>Kernal Density Estimation</button></td></tr>";
+        "<tr><td><button type='button' class='btn btn-link' data-toggle='modal' data-target='#kdeModal'>Kernal Density <br/>Estimation</button></td></tr>"+
+        "<tr><td><h5>Visualization <i>(beta)</i></h5></td></tr>"+
+        "<tr><td><button type='button' class='btn btn-link' data-toggle='modal' data-target='#quadtreeModal'>Geo-Visual Suite</button></td></tr>";
         return this._div;
 }
 uploadFile.addTo(map);
+
+var outputControl = L.control({position: 'topleft'});
+outputControl.onAdd = function(map) {
+        this._div = L.DomUtil.create('div', 'controlBox');
+        this._div.innerHTML = "<table><tr><td><h5>Output Control</h5></td></tr>"+
+        "<tr><td><button type='button' class='btn btn-link' onclick='toggleOutputDiv();'>Toggle R Output</button></td></tr></table>";
+        return this._div;
+}
+outputControl.addTo(map);
+
+function toggleOutputDiv() {
+    $('#infoBox').fadeToggle('fast');
+}
 
 L.control.scale({
         maxWidth: 200
@@ -57,13 +75,12 @@ L.control.scale({
 
 //--------------------Handle File Upload---------------------
 var uploadedFiles= [];
-
 var files;
 $('input[type=file]').on('change', prepareUpload);
 function prepareUpload(event){
 	files = event.target.files;
 }
-        
+var upload;        
 $('#upload-submit').click(function() {
 	event.stopPropagation(); // Stop stuff happening
 	event.preventDefault(); // Totally stop stuff happening
@@ -72,12 +89,16 @@ $('#upload-submit').click(function() {
 	// Create a formdata object and add the files
 	var data = new FormData();
 	var filename ='';
+        var sourceCrs = document.getElementById("sourceCRS").value;
+        var targetCrs = document.getElementById("targetCRS").value;
+        if(targetCrs === "") {targetCrs = "WGS84";}
 	$.each(files, function(key, value)
 	{
-		data.append(key, value);
-		filename = value.name;
+		data.append("upload", value);
+                data.append("sourceSrs", sourceCrs);
+                data.append("targetSrs", targetCrs);
+                filename = value.name;
                 var temp = filename.substring(0,filename.indexOf("."))
-                //alert("temp:"+temp);
                 uploadedFiles.push(temp);
         });
 	var filePath = 'uploads/'+filename;
@@ -99,11 +120,9 @@ $('#upload-submit').click(function() {
             contentType: false, // Set content type to false as jQuery will tell the server its a query string request
             success: function(data, textStatus, jqXHR)
             {
-            //alert("success");
             if(typeof data.error === 'undefined'){
                     var index = filename.indexOf(".");
                     var type = filename.substring(index+1);
-                    //alert(type);
                     if(type === "geojson"){
                         $.getJSON(filePath,function(data){
                             var layer = L.geoJson(data, {
@@ -131,8 +150,33 @@ $('#upload-submit').click(function() {
             }
         }
     });
+    $.ajax({
+            url: 'http://ogre.adc4gis.com/convert',
+            type: 'POST',
+            data: data,
+            cache: false,
+            processData: false,
+            contentType: false,// Don't process the files
+            success: function(data, textStatus, jqXHR)
+            {   
+                var datastring = JSON.stringify(data);
+                writeToFile(filename, datastring);
+            }
+    });
 });
 
+function writeToFile(filename, datastring){
+    var temp = filename.substring(0,filename.indexOf("."));
+    $.post('/Geolysis/write',{
+        "filename": temp,
+        "geojson": datastring
+        },
+        function(data){
+            console.log(data);
+        }
+    );
+    
+}
 //-----------------Handle Modal Behavior--------------------
 $('#kdeModal').on('shown.bs.modal', function () {
   if(uploadedFiles.length === 0 ){
@@ -140,9 +184,9 @@ $('#kdeModal').on('shown.bs.modal', function () {
       $('#errorModal').modal('show');
   }else{
     var du1=document.getElementById("selectKDEFile");
+    document.getElementById("selectKDEFile").options.length = 0; 
     for(var i = 0; i < uploadedFiles.length; i++) {
         var opt = uploadedFiles[i];
-        alert("opt: "+opt);
         var el = document.createElement("option");
         el.textContent = opt;
         el.value = opt;
@@ -158,9 +202,9 @@ $('#kfuncModal').on('shown.bs.modal', function () {
       $('#errorModal').modal('show');
   }else{
     var du1=document.getElementById("selectKfuncFile");
+    document.getElementById("selectKfuncFile").options.length = 0;
     for(var i = 0; i < uploadedFiles.length; i++) {
         var opt = uploadedFiles[i];
-        alert("opt: "+opt);
         var el = document.createElement("option");
         el.textContent = opt;
         el.value = opt;
@@ -175,9 +219,9 @@ $('#nniModal').on('shown.bs.modal', function () {
       $('#errorModal').modal('show');
   }else{
     var du1=document.getElementById("selectNNIFile");
+    document.getElementById("selectNNIFile").options.length = 0;
     for(var i = 0; i < uploadedFiles.length; i++) {
         var opt = uploadedFiles[i];
-        alert("opt: "+opt);
         var el = document.createElement("option");
         el.textContent = opt;
         el.value = opt;
@@ -192,9 +236,9 @@ $('#quadModal').on('shown.bs.modal', function () {
       $('#errorModal').modal('show');
   }else{
     var du1=document.getElementById("selectQuadFile");
+    document.getElementById("selectQuadFile").options.length = 0;
     for(var i = 0; i < uploadedFiles.length; i++) {
         var opt = uploadedFiles[i];
-        alert("opt: "+opt);
         var el = document.createElement("option");
         el.textContent = opt;
         el.value = opt;
@@ -202,6 +246,24 @@ $('#quadModal').on('shown.bs.modal', function () {
       }
   }
 });
+
+$('#quadtreeModal').on('shown.bs.modal', function () {
+  if(uploadedFiles.length === 0 ){
+      $('#quadtreeModal').modal('hide');
+      $('#errorModal').modal('show');
+  }else{
+    var du1=document.getElementById("selectQTFile");
+    document.getElementById("selectQTFile").options.length = 0;
+    for(var i = 0; i < uploadedFiles.length; i++) {
+        var opt = uploadedFiles[i];
+        var el = document.createElement("option");
+        el.textContent = opt;
+        el.value = opt;
+        du1.appendChild(el);
+      }
+  }
+});
+
 
 //--------------Handle Run Commands-----------------------
 function kdeinitialize(){
@@ -262,14 +324,12 @@ function kfuncrun(){
     var knsim = document.getElementById("kfuncnsim").value;
     document.getElementById("kfuncFile").innerHTML = filename;
     document.getElementById("kfuncNSim").innerHTML = knsim;
-    alert(filename+knsim);
     $.get('/Geolysis/rservlet',{
         "algo": 'kfunc',
         "fileName": filename,
         "knsim": knsim
         },
         function(data){
-            alert(data);
             if(data==""){
                 alert("Error: nrank > 0 && nrank < nsim/2 is not TRUE <br/> Adjust nSim");
                 $('#kfuncModal').modal('show');
@@ -315,7 +375,6 @@ function quadinitialize(){
     document.getElementById("quadFile").innerHTML = filename;
     document.getElementById("r").value = r;
     document.getElementById("c").value = c;
-    alert("quad initialize"+ filename+ r +c);
     quadrun();
 }
 
@@ -326,7 +385,6 @@ function quadrun(){
     var filename = document.getElementById("quadFile").innerHTML;
     var r = document.getElementById("r").value;
     var c = document.getElementById("c").value;
-    alert("before run:"+filename+r+c);
     $.get('/Geolysis/rservlet',{
         "algo": 'quad',
         "fileName": filename,
@@ -342,6 +400,56 @@ function quadrun(){
         }
     );
     
+}
+
+function addSuite(){
+    var data={}, layers={}, fills =[
+    "rgb(197,27,125)",
+	"rgb(222,119,174)",
+	"rgb(213, 62, 79)",
+	"rgb(84, 39, 136)",
+	"rgb(247,64,247)",
+	"rgb(244, 109, 67)",
+	"rgb(184,225,134)",
+	"rgb(127,188,65)",
+	"rgb(69, 117, 180)"
+];
+    $('#quadtreeModal').modal('hide');
+    var filename = document.getElementById("selectQTFile").value;
+    var ogr = "uploads/"+filename+".geojson";
+    d3.json(ogr, dealwithData);
+    function dealwithData(oa){
+            data.json= oa.features.map(function(v){
+            return [v.geometry.coordinates[1],v.geometry.coordinates[0]];
+            });
+            
+        delaunay();
+        clusters();
+        quadtree();
+    }
+    function delaunay(){
+        data.delaunay = d3.geom.delaunay(data.json);
+        layers.delaunay = L.layerGroup(data.delaunay.map(function(v){
+                    return L.polygon(v,{stroke:false,fillOpacity:0.7,color:fills[Math.floor((Math.random()*9))]})
+            }));
+            layerControl.addOverlay(layers.delaunay,filename.substring(0,3)+" voronoi","Overlays");
+    }
+    function clusters(){
+        layers.clusters= new L.MarkerClusterGroup();
+            layers.clusters.addLayers(data.json.map(function(v){
+                    return L.marker(L.latLng(v));
+            }));
+            layerControl.addOverlay(layers.clusters,filename.substring(0,3)+" clusters","Overlays");
+    }
+    function quadtree(){
+        data.quadtree = d3.geom.quadtree(data.json.map(function(v){return {x:v[0],y:v[1]};}));
+            layers.quadtree = L.layerGroup();
+            data.quadtree.visit(function(quad, lat1, lng1, lat2, lng2){
+                    layers.quadtree.addLayer(L.rectangle([[lat1,lng1],[lat2,lng2]],{fillOpacity:0,weight:1,color:"#000",clickable:false}));
+            });
+            layerControl.addOverlay(layers.quadtree,filename.substring(0,3)+" quadtree","Overlays");
+    }
+
 }
 
 

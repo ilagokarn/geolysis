@@ -4,6 +4,8 @@
         <link href="http://cdn.leafletjs.com/leaflet-0.7.2/leaflet.css" rel="stylesheet"  />
         <link href="stylesheets/bootstrap.css" rel="stylesheet">
         <link href="stylesheets/Control.OSMGeocoder.css" rel="stylesheet">
+        <link href="stylesheets/MarkerCluster.css" rel="stylesheet">
+        <link href="stylesheets/MarkerCluster.Default.css" rel="stylesheet">
         <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css">
 	<title>Geolysis</title>
     </head>
@@ -17,7 +19,7 @@
                     <h4>Analysis Output</h4>
                     <div id="kdeOutput">
                         <br/>
-                        Algorithm selected: Kernel Density Estimation<br/>
+                        Kernel Density Estimation<br/>
                         Chosen file: <span id="kdeChosenFile"></span> <br/>
                         Kernel type: <span id="kdeChosenWeight"></span><br/>
                         Radius selected: <label for="amount"></label><input id="amount" style="border: 0; color:#f6931f; font-weight:bold; background: #1b1b1b; opacity: 0.8; width: 50px;">meters <br/> 
@@ -27,7 +29,7 @@
                     </div>
                     <div id="kfuncOutput">
                         <br/>
-                        Algorithm selected: Ripley's K Function<br/>
+                        Ripley's K Function<br/>
                         Chosen file: <span id="kfuncFile"></span><br/>
                         Number of simulations: <span id="kfuncNSim"></span><br/>
                         <span id="kfuncloading"><b>Loading, Please Wait...</b></span><br/><br/>
@@ -35,7 +37,7 @@
                     </div>
                     <div id="nniOutput">
                         <br/>
-                        Algorithm selected: Nearest Neighbor Index<br/>
+                        Nearest Neighbor Index<br/>
                         Chosen file: <span id="nniFile"></span><br/>
                         K: <span id="k"></span><br/>
                         <span id="nniloading"><b>Loading, Please Wait...</b></span>
@@ -43,7 +45,7 @@
                     </div>
                     <div id="quadOutput">
                         <br/>
-                        Algorithm selected: Quadrat Analysis<br/>
+                        Quadrat Analysis<br/>
                         Chosen file: <span id="quadFile"></span><br/>
                         Grid Pattern:    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input id="r" type="text" style="width: 40px"/> X <input id="c" type="text" style="width: 40px"/>
                         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <button type="button" class="btn btn-success" onclick="quadrun();">Re-Run</button><br/>
@@ -63,12 +65,15 @@
               <h4 class="modal-title" id="myModalLabel">Add Spatial Layer</h4>
             </div>
             <div class="modal-body">
-                <span> Upload new geospatial data points<br/> Accepted format: Shapefiles in a zipped folder containing .shp, .dbf, and .shx (.prj optional)</span><br/><br/>
+                <span> Upload new geospatial data points<br/> Accepted format: Shapefiles in a zipped folder containing .shp, .dbf, and .shx (.prj optional). Uploaded files will be automatically converted and saved into geoJSON files on the server based on the Co-ordinate Reference System (CRS) specified below.</span><br/><br/>
                 <form action="#" method="post" enctype="multipart/form-data">
                     <input type="file" name="file_upload" id="file"> 
                 </form>
-                Choose color for this layer: <input class="color" value="66ff00" id="pointColor"/>
-           </div>
+                Choose color for this layer: <input class="color" value="66ff00" id="pointColor"/><br/><br/>
+                Source CRS (optional): <input type="text" id="sourceCRS" required/><br/>
+                Target CRS (required): <input type="text" id="targetCRS" placeholder="WGS84 (default)" required/>
+                
+                </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
               <button type="button" id="upload-submit" class="btn btn-success">Submit</button>
@@ -173,7 +178,25 @@
         </div>
       </div>
         
+        <div class="modal fade" id="quadtreeModal" tabindex="-1" role="dialog" aria-labelledby="quadtreeModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+              <h4 class="modal-title" id="quadtreeModalLabel">Add Quadtree Layer</h4>
+            </div>
+              <div class="modal-body">
+                  Select Layer:    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <select id="selectQTFile"></select><br/>
+           </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+              <button type="button" class="btn btn-success" data-dismiss="modal" onclick="addSuite();">Add Layer</button>
+            </div>
+          </div>
+        </div>
+      </div>
         
+            
         <div class="modal fade" id="errorModal" tabindex="-1" role="dialog" aria-labelledby="errorModalLabel" aria-hidden="true">
         <div class="modal-dialog">
           <div class="modal-content">
@@ -205,9 +228,13 @@
 	<script src="js/shp.js"></script>
         <script src="js/catiline.js"></script>
         <script src="js/leaflet.shpfile.js"></script>
+        <script src="js/leaflet-providers.js"></script>
+        <script src="js/leaflet.markercluster.js"></script>
+        <script src="http://d3js.org/d3.v3.js" charset="utf-8"></script>
         <script src ="js/main.js"></script>
         <script>
             $(document).ready(function () {
+                $("#infoBox").hide();
                 $("#kdeOutput").hide();
                 $("#kfuncOutput").hide();
                 $("#nniOutput").hide();
